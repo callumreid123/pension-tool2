@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; padding: 24px; background: transparent; color: #111; }
+.section { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin-bottom: 14px; }
+.lock-row { display: flex; gap: 8px; margin-bottom: 28px; }
+.lock-btn { flex: 1; padding: 8px 0; font-size: 12px; border-radius: 8px; border: 1px solid #ddd; background: transparent; cursor: pointer; color: #888; transition: all 0.15s; }
+.lock-btn.active { background: #f0f0f0; font-weight: 600; color: #111; border-color: #bbb; }
+.sb { margin-bottom: 28px; }
+.sl-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.sl-name { font-size: 14px; font-weight: 600; }
+.sl-sub { font-size: 12px; color: #888; margin-top: 3px; }
+.sl-num { font-size: 32px; font-weight: 700; line-height: 1; text-align: right; }
+input[type=range] { width: 100%; cursor: pointer; accent-color: #378ADD; transition: opacity 0.2s; }
+input[type=range].locked { opacity: 0.25; cursor: not-allowed; pointer-events: none; accent-color: #aaa; }
+.lock-badge { display: none; font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 5px; }
+.lock-badge.visible { display: block; }
+.sl-ends { display: flex; justify-content: space-between; font-size: 11px; color: #bbb; margin-top: 4px; }
+hr { border: none; border-top: 1px solid #eee; margin: 24px 0; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.card { background: #f7f7f7; border-radius: 8px; padding: 14px; }
+.card-lbl { font-size: 11px; color: #888; margin-bottom: 6px; }
+.card-val { font-size: 22px; font-weight: 700; }
+.card-unit { font-size: 11px; color: #888; margin-top: 3px; }
+.verdict { padding: 12px 16px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+</style>
+</head><body>
+
+<p class="section">Lock one variable, then drag the other two</p>
+
+<div class="lock-row">
+  <button class="lock-btn" id="btn-age" onclick="setLock('age')">Lock age</button>
+  <button class="lock-btn active" id="btn-nic" onclick="setLock('nic')">Lock NIC</button>
+  <button class="lock-btn" id="btn-pen" onclick="setLock('pen')">Lock pension</button>
+</div>
+
+<div class="sb">
+  <div class="sl-top">
+    <div>
+      <div class="sl-name">State pension age</div>
+      <div class="sl-sub">Age at which the state pension can be claimed</div>
+    </div>
+    <div class="sl-num" id="v-age" style="color:#185FA5;">66</div>
+  </div>
+  <input type="range" id="sl-age" min="63" max="70" step="1" value="66">
+  <div class="lock-badge" id="badge-age">Locked</div>
+  <div class="sl-ends"><span>63</span><span>70</span></div>
+</div>
+
+<div class="sb">
+  <div class="sl-top">
+    <div>
+      <div class="sl-name">Employee NIC rate</div>
+      <div class="sl-sub">% of earnings paid into National Insurance</div>
+    </div>
+    <div class="sl-num" id="v-nic" style="color:#2d7a4a;">8.0%</div>
+  </div>
+  <input type="range" id="sl-nic" min="6" max="12" step="0.5" value="8" class="locked">
+  <div class="lock-badge visible" id="badge-nic">Locked</div>
+  <div class="sl-ends"><span>6%</span><span>12%</span></div>
+</div>
+
+<div class="sb">
+  <div class="sl-top">
+    <div>
+      <div class="sl-name">Weekly state pension</div>
+      <div class="sl-sub">Full new state pension amount per week</div>
+    </div>
+    <div class="sl-num" id="v-pen" style="color:#993C1D;">£221</div>
+  </div>
+  <input type="range" id="sl-pen" min="180" max="280" step="5" value="221">
+  <div class="lock-badge" id="badge-pen">Locked</div>
+  <div class="sl-ends"><span>£180</span><span>£280</span></div>
+</div>
+
+<hr>
+<p class="section">Fiscal impact</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-lbl">Annual pension spending</div>
+    <div class="card-val" id="m-spend">—</div>
+    <div class="card-unit">£ billion / year</div>
+  </div>
+  <div class="card">
+    <div class="card-lbl">NIC revenue</div>
+    <div class="card-val" id="m-rev">—</div>
+    <div class="card-unit">£ billion / year</div>
+  </div>
+  <div class="card">
+    <div class="card-lbl">Gap vs today</div>
+    <div class="card-val" id="m-gap">—</div>
+    <div class="card-unit">£bn change from baseline</div>
+  </div>
+</div>
+
+<div class="verdict" id="verdict" style="background:#f7f7f7;color:#555;">—</div>
+
+<script>
+var B_AGE=66, B_NIC=8, B_PEN=221, B_PM=12.5, PM_PER_YR=0.2;
+var NIC_PBP = 33e6 * 35400 * 0.01 / 1e9;
+var AGE_MIN=63, AGE_MAX=70, NIC_MIN=6, NIC_MAX=12, PEN_MIN=180, PEN_MAX=280;
+var locked = 'nic';
+
+function cl(v,lo,hi){ return Math.min(hi,Math.max(lo,v)); }
+function rAge(v){ return cl(Math.round(v), AGE_MIN, AGE_MAX); }
+function rNic(v){ return cl(Math.round(v*2)/2, NIC_MIN, NIC_MAX); }
+function rPen(v){ return cl(Math.round(v/5)*5, PEN_MIN, PEN_MAX); }
+function pmOf(age){ return B_PM-(age-B_AGE)*PM_PER_YR; }
+function spendOf(a,p){ return pmOf(a)*1e6*p*52/1e9; }
+function revOf(n){ return 33e6*35400*(n/100)/1e9; }
+var BASE_GAP = spendOf(B_AGE,B_PEN)-revOf(B_NIC);
+
+function solvePen(age,nic){ return rPen((revOf(nic)+BASE_GAP)*1e9/(pmOf(age)*1e6*52)); }
+function solveNic(age,pen){ return rNic((spendOf(age,pen)-BASE_GAP)/NIC_PBP); }
+function solveAge(nic,pen){
+  var pmNeeded=(revOf(nic)+BASE_GAP)*1e9/(pen*1e6*52);
+  return rAge(B_AGE+(B_PM-pmNeeded)/PM_PER_YR);
+}
+
+function setLock(v){
+  locked = v;
+  ['age','nic','pen'].forEach(function(x){
+    document.getElementById('btn-'+x).classList.toggle('active', x===v);
+    document.getElementById('sl-'+x).classList.toggle('locked', x===v);
+    document.getElementById('badge-'+x).classList.toggle('visible', x===v);
+  });
+}
+
+function display(age,nic,pen){
+  var sb=spendOf(age,pen), rb=revOf(nic);
+  var gapChange=(sb-rb)-BASE_GAP;
+  document.getElementById('sl-age').value=age;
+  document.getElementById('sl-nic').value=nic;
+  document.getElementById('sl-pen').value=pen;
+  document.getElementById('v-age').textContent=age;
+  document.getElementById('v-nic').textContent=nic.toFixed(1)+'%';
+  document.getElementById('v-pen').textContent='£'+pen;
+  document.getElementById('m-spend').textContent=sb.toFixed(1);
+  document.getElementById('m-rev').textContent=rb.toFixed(1);
+
+  var gEl=document.getElementById('m-gap');
+  var vEl=document.getElementById('verdict');
+  var a=Math.abs(gapChange);
+  if(a<0.5){
+    gEl.textContent='≈ 0'; gEl.style.color='#111';
+    vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#f7f7f7;color:#555;';
+    vEl.textContent='Gap broadly unchanged from today — fiscal pressure similar to the current £51bn shortfall covered by general taxation.';
+  } else if(gapChange>0){
+    gEl.textContent='+£'+gapChange.toFixed(1)+'bn'; gEl.style.color='#a32d2d';
+    vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#fdf0f0;color:#a32d2d;';
+    vEl.textContent='Funding gap widens by £'+a.toFixed(1)+'bn — requires more general taxation or borrowing.';
+  } else {
+    gEl.textContent='−£'+a.toFixed(1)+'bn'; gEl.style.color='#2d7a4a';
+    vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#f0faf4;color:#2d7a4a;';
+    vEl.textContent='Funding gap narrows by £'+a.toFixed(1)+'bn — reduced pressure on general taxation.';
+  }
+}
+
+function onAge(){
+  var age=rAge(parseFloat(document.getElementById('sl-age').value));
+  if(locked==='nic'){ display(age, rNic(parseFloat(document.getElementById('sl-nic').value)), solvePen(age, rNic(parseFloat(document.getElementById('sl-nic').value)))); }
+  else { display(age, solveNic(age, rPen(parseFloat(document.getElementById('sl-pen').value))), rPen(parseFloat(document.getElementById('sl-pen').value))); }
+}
+function onNic(){
+  var nic=rNic(parseFloat(document.getElementById('sl-nic').value));
+  if(locked==='age'){ display(rAge(parseFloat(document.getElementById('sl-age').value)), nic, solvePen(rAge(parseFloat(document.getElementById('sl-age').value)), nic)); }
+  else { display(solveAge(nic, rPen(parseFloat(document.getElementById('sl-pen').value))), nic, rPen(parseFloat(document.getElementById('sl-pen').value))); }
+}
+function onPen(){
+  var pen=rPen(parseFloat(document.getElementById('sl-pen').value));
+  if(locked==='age'){ display(rAge(parseFloat(document.getElementById('sl-age').value)), solveNic(rAge(parseFloat(document.getElementById('sl-age').value)), pen), pen); }
+  else { display(solveAge(rNic(parseFloat(document.getElementById('sl-nic').value)), pen), rNic(parseFloat(document.getElementById('sl-nic').value)), pen); }
+}
+
+document.getElementById('sl-age').oninput=onAge;
+document.getElementById('sl-nic').oninput=onNic;
+document.getElementById('sl-pen').oninput=onPen;
+
+display(B_AGE,B_NIC,B_PEN);
+</script>
+</body></html>
