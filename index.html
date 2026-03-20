@@ -91,9 +91,9 @@ hr { border: none; border-top: 1px solid #eee; margin: 24px 0; }
     <div class="card-unit">£ billion / year</div>
   </div>
   <div class="card">
-    <div class="card-lbl">Gap vs today</div>
+    <div class="card-lbl">Total funding gap</div>
     <div class="card-val" id="m-gap">—</div>
-    <div class="card-unit">£bn change from baseline</div>
+    <div class="card-unit">£bn spend minus NIC revenue</div>
   </div>
 </div>
 
@@ -132,7 +132,10 @@ function setLock(v){
 
 function display(age,nic,pen){
   var sb=spendOf(age,pen), rb=revOf(nic);
-  var gapChange=(sb-rb)-BASE_GAP;
+  // FIX: use the TOTAL gap (spend - revenue), not just the change from baseline
+  var totalGap = sb - rb;
+  var gapChange = totalGap - BASE_GAP;
+
   document.getElementById('sl-age').value=age;
   document.getElementById('sl-nic').value=nic;
   document.getElementById('sl-pen').value=pen;
@@ -144,19 +147,30 @@ function display(age,nic,pen){
 
   var gEl=document.getElementById('m-gap');
   var vEl=document.getElementById('verdict');
-  var a=Math.abs(gapChange);
-  if(a<0.5){
-    gEl.textContent='≈ 0'; gEl.style.color='#111';
-    vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#f7f7f7;color:#555;';
-    vEl.textContent='Gap broadly unchanged from today, fiscal pressure similar to the current £51bn shortfall covered by general taxation.';
-  } else if(gapChange>0){
-    gEl.textContent='+£'+gapChange.toFixed(1)+'bn'; gEl.style.color='#a32d2d';
-    vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#fdf0f0;color:#a32d2d;';
-    vEl.textContent='Funding gap widens by £'+a.toFixed(1)+'bn , requires more general taxation or borrowing.';
+
+  // Always show the full total gap in the card
+  if(totalGap <= 0){
+    gEl.textContent='£'+Math.abs(totalGap).toFixed(1)+'bn surplus';
+    gEl.style.color='#2d7a4a';
   } else {
-    gEl.textContent='−£'+a.toFixed(1)+'bn'; gEl.style.color='#2d7a4a';
+    gEl.textContent='£'+totalGap.toFixed(1)+'bn';
+    gEl.style.color= totalGap > BASE_GAP ? '#a32d2d' : (totalGap < BASE_GAP - 0.5 ? '#2d7a4a' : '#111');
+  }
+
+  var deltaAbs = Math.abs(gapChange);
+
+  if(totalGap <= 0){
     vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#f0faf4;color:#2d7a4a;';
-    vEl.textContent='Funding gap narrows by £'+a.toFixed(1)+'bn , reduced pressure on general taxation.';
+    vEl.textContent='NIC revenue fully covers pension spending — a surplus of £'+Math.abs(totalGap).toFixed(1)+'bn, a £'+deltaAbs.toFixed(1)+'bn improvement on the £'+BASE_GAP.toFixed(1)+'bn baseline deficit.';
+  } else if(deltaAbs < 0.5){
+    vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#f7f7f7;color:#555;';
+    vEl.textContent='Total funding gap broadly unchanged at £'+totalGap.toFixed(1)+'bn, similar to the current baseline deficit covered by general taxation.';
+  } else if(gapChange > 0){
+    vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#fdf0f0;color:#a32d2d;';
+    vEl.textContent='Total funding gap is £'+totalGap.toFixed(1)+'bn — £'+deltaAbs.toFixed(1)+'bn worse than the £'+BASE_GAP.toFixed(1)+'bn baseline, requiring more general taxation or borrowing.';
+  } else {
+    vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#f0faf4;color:#2d7a4a;';
+    vEl.textContent='Total funding gap narrows to £'+totalGap.toFixed(1)+'bn — £'+deltaAbs.toFixed(1)+'bn better than the £'+BASE_GAP.toFixed(1)+'bn baseline, reducing pressure on general taxation.';
   }
 }
 
