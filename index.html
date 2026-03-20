@@ -152,11 +152,11 @@ function display(age,nic,pen){
   } else if(gapChange>0){
     gEl.textContent='+£'+gapChange.toFixed(1)+'bn'; gEl.style.color='#a32d2d';
     vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#fdf0f0;color:#a32d2d;';
-    vEl.textContent='Funding gap widens by £'+a.toFixed(1)+'bn — requires more general taxation or borrowing.';
+    vEl.textContent='Funding gap widens by £'+a.toFixed(1)+'bn , requires more general taxation or borrowing.';
   } else {
     gEl.textContent='−£'+a.toFixed(1)+'bn'; gEl.style.color='#2d7a4a';
     vEl.style.cssText='padding:12px 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#f0faf4;color:#2d7a4a;';
-    vEl.textContent='Funding gap narrows by £'+a.toFixed(1)+'bn — reduced pressure on general taxation.';
+    vEl.textContent='Funding gap narrows by £'+a.toFixed(1)+'bn , reduced pressure on general taxation.';
   }
 }
 
